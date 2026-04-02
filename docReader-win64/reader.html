@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本快速提取器</title>
+    <style>
+        :root {
+            --sidebar-width: 380px; 
+            --primary-color: #3b82f6;
+            --success-color: #10b981;
+            --bg-color: #f8fafc;
+            --text-main: #1e293b;
+            --border-color: #e2e8f0;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-main); overflow: hidden; }
+        .app-container { display: flex; height: 100vh; }
+        .sidebar { width: var(--sidebar-width); background: white; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px; box-sizing: border-box; box-shadow: 4px 0 10px rgba(0,0,0,0.02); z-index: 10; }
+        h1 { font-size: 1.5rem; margin: 0 0 28px 0; color: var(--primary-color); font-weight: 700; }
+        .config-group { margin-bottom: 28px; }
+        
+        /* 标题栏布局：包含全选方框 */
+        .title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .label-title { font-size: 0.8rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        /* 全选方框容器 */
+        .select-all-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748b; cursor: pointer; }
+        .select-all-wrap input { width: 16px; height: 16px; cursor: pointer; }
+
+        .path-input-group { display: flex; gap: 10px; align-items: stretch; margin-top: 8px; }
+        .path-input { flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .icon-btn-container { display: flex; gap: 10px; }
+        .icon-btn { padding: 0; background: #f1f5f9; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; transition: all 0.2s; flex-shrink: 0; }
+        .icon-btn:hover { background: #e2e8f0; border-color: var(--primary-color); transform: translateY(-1px); }
+        
+        .checkbox-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: auto; overflow: visible; }
+        .checkbox-item { display: flex; align-items: center; padding: 10px; background: #f1f5f9; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
+        .checkbox-item:hover { background: #e2e8f0; }
+        .checkbox-item input { margin-right: 10px; width: 16px; height: 16px; }
+        
+        .actions { margin-top: auto; display: flex; flex-direction: column; gap: 14px; }
+        button.main-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        #scanBtn { background: var(--primary-color); color: white; }
+        #saveFileBtn { background: var(--success-color); color: white; }
+        #saveFileBtn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; padding: 24px; overflow: hidden; }
+        .status-bar { padding: 14px 18px; background: white; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 20px; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+        .preview-container { flex: 1; background: #1e1e1e; border-radius: 14px; position: relative; overflow: hidden; display: flex; }
+        
+        #result-area { 
+            width: 100%; 
+            height: 100%; 
+            padding: 24px; 
+            box-sizing: border-box; 
+            font-family: 'Fira Code', 'Consolas', monospace; 
+            font-size: 14px; 
+            line-height: 1.6; 
+            color: #d4d4d4; 
+            background: transparent; 
+            border: none; 
+            outline: none; 
+            resize: none; 
+            overflow-y: auto;
+            white-space: pre; 
+        }
+        
+        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; text-align: center; pointer-events: none; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <h1>文本快速提取器</h1>
+        <div class="config-group">
+            <span class="label-title">待提取文本</span>
+            <div class="path-input-group">
+                <input type="text" id="dirPath" class="path-input" placeholder="请选择或粘贴路径..." value="E:/your doc">
+                <div class="icon-btn-container">
+                    <button title="选择文件夹" class="icon-btn" id="browseDirBtn">📁</button>
+                    <button title="选择文件以定位文件夹" class="icon-btn" id="browseFileBtn">📄</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="config-group">
+            <div class="title-bar">
+                <span class="label-title">适配后缀</span>
+                <label class="select-all-wrap">
+                    <input type="checkbox" id="selectAllCheckbox">
+                    <span>全选</span>
+                </label>
+            </div>
+            <div class="checkbox-list" id="extensionGroup">
+                <label class="checkbox-item"><input type="checkbox" value=".java" checked>.java</label>
+                <label class="checkbox-item"><input type="checkbox" value=".xml" checked>.xml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".yml" checked>.yml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".yaml" checked>.yaml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".txt" checked>.txt</label>
+                <label class="checkbox-item"><input type="checkbox" value=".properties" checked>.properties</label>
+                <label class="checkbox-item"><input type="checkbox" value=".json">.json</label>
+                <label class="checkbox-item"><input type="checkbox" value=".sql">.sql</label>
+                <label class="checkbox-item"><input type="checkbox" value=".md">.md</label>
+                <label class="checkbox-item"><input type="checkbox" value=".py">.py</label>
+                <label class="checkbox-item"><input type="checkbox" value=".sh">.sh</label>
+                <label class="checkbox-item"><input type="checkbox" value=".bat">.bat</label>
+                <label class="checkbox-item"><input type="checkbox" value=".html">.html</label>
+                <label class="checkbox-item"><input type="checkbox" value=".css">.css</label>
+                <label class="checkbox-item"><input type="checkbox" value=".js">.js</label>
+            </div>
+        </div>
+        <div class="actions">
+            <button id="scanBtn" class="main-btn">🚀 开始扫描并生成</button>
+            <button id="saveFileBtn" class="main-btn" disabled>💾 保存合并结果</button>
+        </div>
+    </aside>
+    <main class="main-content">
+        <div class="status-bar">
+            <span id="statusText">状态：就绪</span>
+            <span id="fileStats">已处理文件: 0</span>
+        </div>
+        <div class="preview-container">
+            <textarea id="result-area" spellcheck="false"></textarea>
+            <div class="empty-state" id="emptyState"><p>🚀 请点击左侧图标选择路径并开始扫描<br>(读取后可直接在此编辑内容)</p></div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const scanBtn = document.getElementById('scanBtn');
+    const browseDirBtn = document.getElementById('browseDirBtn');
+    const browseFileBtn = document.getElementById('browseFileBtn');
+    const saveFileBtn = document.getElementById('saveFileBtn');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const statusText = document.getElementById('statusText');
+    const fileStats = document.getElementById('fileStats');
+    const resultArea = document.getElementById('result-area');
+    const emptyState = document.getElementById('emptyState');
+    const extensionGroup = document.getElementById('extensionGroup');
+    const dirPathInput = document.getElementById('dirPath');
+
+    // 全选/全不选方框逻辑
+    selectAllCheckbox.addEventListener('change', (e) => {
+        const checkboxes = extensionGroup.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+
+    // 监听下方单个复选框状态，如果全部选中，全选框也勾选；如果有一个没选，全选框取消勾选
+    extensionGroup.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+            const checkboxes = Array.from(extensionGroup.querySelectorAll('input[type="checkbox"]'));
+            const allChecked = checkboxes.every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+        }
+    });
+
+    browseDirBtn.addEventListener('click', async () => {
+        try {
+            statusText.innerText = "正在等待选择文件夹...";
+            const response = await fetch('http://127.0.0.1:12580/api/select_folder');
+            const data = await response.json();
+            if (data.path) {
+                dirPathInput.value = data.path;
+                statusText.innerText = "已选路径: " + data.path;
+            }
+        } catch (err) { alert("后端连接失败"); }
+    });
+
+    browseFileBtn.addEventListener('click', async () => {
+        try {
+            statusText.innerText = "正在等待选择文件...";
+            const response = await fetch('http://127.0.0.1:12580/api/select_files');
+            const data = await response.json();
+            if (data.path) {
+                dirPathInput.value = data.path;
+                statusText.innerText = "已定位文件夹: " + data.path;
+            }
+        } catch (err) { alert("后端连接失败"); }
+    });
+
+    function getSelectedExtensions() {
+        return Array.from(extensionGroup.querySelectorAll('input:checked')).map(cb => cb.value);
+    }
+
+    scanBtn.addEventListener('click', async () => {
+        const path = dirPathInput.value.trim();
+        const extensions = getSelectedExtensions();
+        if (!path) return alert("请先选择路径");
+        if (extensions.length === 0) return alert("请至少选择一个后缀名");
+
+        try {
+            scanBtn.disabled = true;
+            statusText.innerText = "正在扫描读取中...";
+            resultArea.value = ""; 
+            emptyState.style.display = 'none';
+
+            const response = await fetch('http://127.0.0.1:12580/api/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path, extensions })
+            });
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            const content = data.content || "";
+            fileStats.innerText = `已处理文件: ${data.count}`;
+            
+            if (content.length > 0) {
+                resultArea.value = content;
+                statusText.innerText = "读取成功！内容已加载，您可以直接编辑。";
+                saveFileBtn.disabled = false;
+            } else {
+                statusText.innerText = "未找到符合条件的文件内容";
+                emptyState.style.display = 'block';
+                saveFileBtn.disabled = true;
+            }
+        } catch (err) {
+            statusText.innerText = "错误: " + err.message;
+            emptyState.style.display = 'block';
+        } finally {
+            scanBtn.disabled = false;
+        }
+    });
+
+    saveFileBtn.addEventListener('click', async () => {
+        const editedContent = resultArea.value;
+        if (!editedContent) return alert("没有可保存的内容");
+
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: 'merged_output.txt',
+                types: [{ description: 'Text Files', accept: { 'text/plain': ['.txt'] } }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(editedContent);
+            await writable.close();
+            statusText.innerText = "保存成功！";
+        } catch (err) { console.log("取消保存"); }
+    });
+</script>
+</body>
+</html>

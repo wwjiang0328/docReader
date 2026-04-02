@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>docReader - 快速文本提取 & 智能合并工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00D9FF;
+            --primary-foreground: #0F172A;
+            --sidebar-primary: #A855F7;
+            --sidebar-primary-foreground: #FFFFFF;
+            --background: #0F172A;
+            --foreground: #E2E8F0;
+            --card: #1A1F3A;
+            --card-foreground: #E2E8F0;
+            --secondary: #1E293B;
+            --secondary-foreground: #94A3B8;
+            --muted: #334155;
+            --muted-foreground: #94A3B8;
+            --accent: #00D9FF;
+            --accent-foreground: #0F172A;
+            --neon-cyan: #00D9FF;
+            --neon-purple: #A855F7;
+            --neon-green: #10B981;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom, #0F172A, #1A0F2E, #0F172A);
+            color: var(--foreground);
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-1 {
+            position: absolute;
+            width: 288px;
+            height: 288px;
+            background: rgba(0, 217, 255, 0.1);
+            border-radius: 9999px;
+            filter: blur(80px);
+            top: 80px;
+            right: 40px;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        .bg-glow-2 {
+            position: absolute;
+            width: 384px;
+            height: 384px;
+            background: rgba(168, 85, 247, 0.1);
+            border-radius: 9999px;
+            filter: blur(80px);
+            bottom: 160px;
+            left: 40px;
+            animation: pulse 4s ease-in-out infinite;
+            animation-delay: 1s;
+        }
+
+        .bg-glow-3 {
+            position: absolute;
+            width: 320px;
+            height: 320px;
+            background: rgba(16, 185, 129, 0.05);
+            border-radius: 9999px;
+            filter: blur(80px);
+            top: 50%;
+            left: 33%;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 217, 255, 0.5), inset 0 0 20px rgba(0, 217, 255, 0.1);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(0, 217, 255, 0.8), inset 0 0 30px rgba(0, 217, 255, 0.2);
+            }
+        }
+
+        .glass-effect {
+            background: rgba(26, 31, 58, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.1);
+        }
+
+        .glass-effect-purple {
+            background: rgba(26, 31, 58, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            box-shadow: 0 8px 32px rgba(168, 85, 247, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #00D9FF, #A855F7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .gradient-text-alt {
+            background: linear-gradient(135deg, #A855F7, #10B981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            z-index: 10;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: center;
+        }
+
+        .hero-text h1 {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        .hero-text p {
+            font-size: 1.25rem;
+            color: #94A3B8;
+            margin-bottom: 32px;
+            line-height: 1.6;
+            animation: slideInLeft 0.8s ease-out 0.2s both;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            animation: slideInLeft 0.8s ease-out 0.4s both;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to right, #00D9FF, #0084FF);
+            color: white;
+            box-shadow: 0 8px 24px rgba(0, 217, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(0, 217, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #00D9FF;
+            border: 2px solid rgba(0, 217, 255, 0.5);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 217, 255, 0.1);
+            border-color: #00D9FF;
+        }
+
+        .stats {
+            display: flex;
+            gap: 32px;
+            margin-top: 48px;
+            padding-top: 32px;
+            border-top: 1px solid rgba(226, 232, 240, 0.1);
+            animation: slideInLeft 0.8s ease-out 0.6s both;
+        }
+
+        .stat {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #94A3B8;
+            font-size: 0.875rem;
+        }
+
+        /* Features Section */
+        .section {
+            position: relative;
+            padding: 96px 20px;
+            z-index: 10;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-title h2 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-title p {
+            font-size: 1.125rem;
+            color: #94A3B8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            padding: 24px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .feature-card:nth-child(1) { animation-delay: 0.1s; }
+        .feature-card:nth-child(2) { animation-delay: 0.2s; }
+        .feature-card:nth-child(3) { animation-delay: 0.3s; }
+        .feature-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0, 217, 255, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .feature-card p {
+            color: #94A3B8;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* How It Works */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .step {
+            padding: 32px;
+            border-radius: 12px;
+            text-align: center;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .step:nth-child(1) { animation-delay: 0.1s; }
+        .step:nth-child(2) { animation-delay: 0.2s; }
+        .step:nth-child(3) { animation-delay: 0.3s; }
+
+        .step-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: rgba(0, 217, 255, 0.2);
+            margin-bottom: 16px;
+        }
+
+        .step-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+
+        .step h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .step p {
+            color: #94A3B8;
+            line-height: 1.6;
+        }
+
+        /* Formats Section */
+        .formats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .format-badge {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            background: rgba(26, 31, 58, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            color: #00D9FF;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .format-badge:hover {
+            transform: scale(1.05) translateY(-4px);
+            border-color: #00D9FF;
+            box-shadow: 0 8px 24px rgba(0, 217, 255, 0.3);
+        }
+
+        /* CTA Section */
+        .cta-section {
+            position: relative;
+            padding: 96px 20px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .cta-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .cta-content h2 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .cta-content p {
+            font-size: 1.125rem;
+            color: #94A3B8;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.6s ease-out 0.4s both;
+        }
+
+        /* Footer */
+        footer {
+            position: relative;
+            border-top: 1px solid rgba(226, 232, 240, 0.1);
+            padding: 48px 20px;
+            z-index: 10;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
+        .footer-col h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: white;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            margin-bottom: 8px;
+        }
+
+        .footer-col ul li a {
+            color: #94A3B8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-col ul li a:hover {
+            color: #00D9FF;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(226, 232, 240, 0.1);
+            padding-top: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-bottom p {
+            color: #94A3B8;
+            font-size: 0.875rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .social-links a {
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+
+        .social-links a:hover {
+            color: #00D9FF;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-text h1 {
+                font-size: 2rem;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps {
+                grid-template-columns: 1fr;
+            }
+
+            .formats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .social-links {
+                justify-content: center;
+            }
+        }
+
+        .cyan-text { color: #00D9FF; }
+        .purple-text { color: #A855F7; }
+        .green-text { color: #10B981; }
+    </style>
+</head>
+<body>
+    <!-- Background Animation -->
+    <div class="bg-animation">
+        <div class="bg-glow-1"></div>
+        <div class="bg-glow-2"></div>
+        <div class="bg-glow-3"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1><span class="gradient-text">docReader</span></h1>
+                <p>快速提取 & 智能合并</p>
+                <p style="font-size: 1rem; color: #94A3B8; margin-bottom: 24px;">一键扫描文件夹，自动检测编码，智能合并多个文件内容。为开发者设计的强大文本处理工具。</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary">✨ 了解产品</button>
+                    <button class="btn btn-secondary">查看特性 ➜</button>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value cyan-text">15+</div>
+                        <div class="stat-label">支持文件格式</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value purple-text">10K+</div>
+                        <div class="stat-label">开发者使用</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value green-text">100%</div>
+                        <div class="stat-label">免费开源</div>
+                    </div>
+                </div>
+            </div>
+            <div style="display: none; opacity: 0;">
+                <!-- Placeholder for visual balance -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section">
+        <div class="section-title">
+            <h2 class="gradient-text">核心功能</h2>
+            <p>专为开发者打造的高效文本处理解决方案</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-effect">
+                <div class="feature-icon">⚡</div>
+                <h3>闪电快速</h3>
+                <p>递归扫描，批量处理，毫秒级响应</p>
+            </div>
+            <div class="feature-card glass-effect-purple">
+                <div class="feature-icon">💻</div>
+                <h3>智能编码</h3>
+                <p>自动检测 UTF-8、GBK 等多种编码</p>
+            </div>
+            <div class="feature-card glass-effect">
+                <div class="feature-icon">🔀</div>
+                <h3>智能合并</h3>
+                <p>多文件内容一键合并，保留结构</p>
+            </div>
+            <div class="feature-card glass-effect-purple">
+                <div class="feature-icon">💾</div>
+                <h3>轻松导出</h3>
+                <p>支持多种格式，一键保存结果</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section">
+        <div class="section-title">
+            <h2 class="gradient-text-alt">工作流程</h2>
+            <p>三个简单步骤，快速完成文本提取与合并</p>
+        </div>
+        <div class="steps">
+            <div class="step glass-effect">
+                <div class="step-number">01</div>
+                <div class="step-icon">📁</div>
+                <h3>选择文件夹</h3>
+                <p>点击按钮选择要扫描的文件夹路径</p>
+            </div>
+            <div class="step glass-effect">
+                <div class="step-number">02</div>
+                <div class="step-icon">⚙️</div>
+                <h3>配置文件类型</h3>
+                <p>选择要提取的文件格式（.java、.xml 等）</p>
+            </div>
+            <div class="step glass-effect">
+                <div class="step-number">03</div>
+                <div class="step-icon">🚀</div>
+                <h3>一键合并</h3>
+                <p>点击扫描按钮，自动合并所有文件内容</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Supported Formats -->
+    <section class="section">
+        <div class="section-title">
+            <h2 class="gradient-text">支持的文件格式</h2>
+            <p>支持 15+ 种常见开发文件格式</p>
+        </div>
+        <div class="formats-grid">
+            <div class="format-badge">.java</div>
+            <div class="format-badge">.xml</div>
+            <div class="format-badge">.yml</div>
+            <div class="format-badge">.yaml</div>
+            <div class="format-badge">.json</div>
+            <div class="format-badge">.sql</div>
+            <div class="format-badge">.md</div>
+            <div class="format-badge">.py</div>
+            <div class="format-badge">.sh</div>
+            <div class="format-badge">.bat</div>
+            <div class="format-badge">.html</div>
+            <div class="format-badge">.css</div>
+            <div class="format-badge">.js</div>
+            <div class="format-badge">.txt</div>
+            <div class="format-badge">.properties</div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2 class="gradient-text">准备好了吗？</h2>
+            <p>体验 docReader 强大的文本提取与合并功能</p>
+            <div class="cta-buttons">
+                <button class="btn btn-primary">✨ 探索功能</button>
+                <button class="btn btn-secondary">查看详情 ➜</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-col">
+                <h4>docReader</h4>
+                <p style="color: #94A3B8; font-size: 0.9rem;">为开发者设计的高效文本处理工具</p>
+            </div>
+            <div class="footer-col">
+                <h4>产品</h4>
+                <ul>
+                    <li><a href="#">功能</a></li>
+                    <li><a href="#">下载</a></li>
+                    <li><a href="#">文档</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>社区</h4>
+                <ul>
+                    <li><a href="#">GitHub</a></li>
+                    <li><a href="#">问题反馈</a></li>
+                    <li><a href="#">讨论</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>法律</h4>
+                <ul>
+                    <li><a href="#">隐私政策</a></li>
+                    <li><a href="#">服务条款</a></li>
+                    <li><a href="#">许可证</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2024 docReader. All rights reserved.</p>
+            <div class="social-links">
+                <a href="#">Twitter</a>
+                <a href="#">GitHub</a>
+                <a href="#">Discord</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll for links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Button interactions
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 100);
+            });
+        });
+
+        // Intersection Observer for animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.animation = 'fadeInUp 0.6s ease-out forwards';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.feature-card, .step, .format-badge').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本快速读取器 (macOS)</title>
+    <style>
+        :root {
+            --sidebar-width: 380px; 
+            --primary-color: #007aff; /* 适配 macOS 经典的蓝色 */
+            --success-color: #34c759; /* 适配 macOS 经典的绿色 */
+            --bg-color: #f5f5f7;
+            --text-main: #1d1d1f;
+            --border-color: #d2d2d7;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-main); overflow: hidden; }
+        .app-container { display: flex; height: 100vh; }
+        .sidebar { width: var(--sidebar-width); background: rgba(255,255,255,0.8); backdrop-filter: blur(20px); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px; box-sizing: border-box; z-index: 10; }
+        h1 { font-size: 1.5rem; margin: 0 0 28px 0; color: var(--text-main); font-weight: 700; letter-spacing: -0.02em; }
+        .config-group { margin-bottom: 28px; }
+        .title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .label-title { font-size: 0.75rem; font-weight: 600; color: #86868b; text-transform: uppercase; }
+        .select-all-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--primary-color); cursor: pointer; }
+        .path-input-group { display: flex; gap: 10px; align-items: stretch; margin-top: 8px; }
+        .path-input { flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; background: white; }
+        .icon-btn-container { display: flex; gap: 10px; }
+        .icon-btn { background: white; border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; transition: all 0.2s; }
+        .icon-btn:hover { background: #f5f5f7; border-color: var(--primary-color); }
+        .checkbox-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .checkbox-item { display: flex; align-items: center; padding: 10px; background: white; border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; font-size: 0.9rem; }
+        .checkbox-item input { margin-right: 10px; width: 16px; height: 16px; }
+        .actions { margin-top: auto; display: flex; flex-direction: column; gap: 14px; }
+        button.main-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
+        #scanBtn { background: var(--primary-color); color: white; }
+        #scanBtn:active { opacity: 0.8; transform: scale(0.98); }
+        #saveFileBtn { background: var(--success-color); color: white; }
+        #saveFileBtn:disabled { background: #e5e5ea; color: #aeaeae; cursor: not-allowed; }
+        .main-content { flex: 1; display: flex; flex-direction: column; padding: 24px; overflow: hidden; }
+        .status-bar { padding: 14px 18px; background: white; border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .preview-container { flex: 1; background: #1e1e1e; border-radius: 16px; position: relative; overflow: hidden; display: flex; }
+        #result-area { width: 100%; height: 100%; padding: 24px; font-family: "SF Mono", "Menlo", monospace; font-size: 13px; line-height: 1.6; color: #d4d4d4; background: transparent; border: none; outline: none; resize: none; white-space: pre; }
+        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <h1>文本快速读取器</h1>
+        <div class="config-group">
+            <span class="label-title">待处理文本</span>
+            <div class="path-input-group">
+                <input type="text" id="dirPath" class="path-input" placeholder="/Users/您的用户名/Documents" value="/Users/">
+                <div class="icon-btn-container">
+                    <button title="选择文件夹" class="icon-btn" id="browseDirBtn">📁</button>
+                    <button title="选择文件定位" class="icon-btn" id="browseFileBtn">📄</button>
+                </div>
+            </div>
+        </div>
+        <div class="config-group">
+            <div class="title-bar">
+                <span class="label-title">适配后缀</span>
+                <label class="select-all-wrap"><input type="checkbox" id="selectAllCheckbox"><span>全选</span></label>
+            </div>
+            <div class="checkbox-list" id="extensionGroup">
+                <label class="checkbox-item"><input type="checkbox" value=".java" checked>.java</label>
+                <label class="checkbox-item"><input type="checkbox" value=".xml" checked>.xml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".yml" checked>.yml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".yaml" checked>.yaml</label>
+                <label class="checkbox-item"><input type="checkbox" value=".txt" checked>.txt</label>
+                <label class="checkbox-item"><input type="checkbox" value=".properties" checked>.properties</label>
+                <label class="checkbox-item"><input type="checkbox" value=".json">.json</label>
+                <label class="checkbox-item"><input type="checkbox" value=".sql">.sql</label>
+                <label class="checkbox-item"><input type="checkbox" value=".md">.md</label>
+                <label class="checkbox-item"><input type="checkbox" value=".py">.py</label>
+                <label class="checkbox-item"><input type="checkbox" value=".sh">.sh</label>
+                <label class="checkbox-item"><input type="checkbox" value=".bat">.bat</label>
+                <label class="checkbox-item"><input type="checkbox" value=".html">.html</label>
+                <label class="checkbox-item"><input type="checkbox" value=".css">.css</label>
+                <label class="checkbox-item"><input type="checkbox" value=".js">.js</label>
+            </div>
+        </div>
+        <div class="actions">
+            <button id="scanBtn" class="main-btn">🚀 开始扫描并生成</button>
+            <button id="saveFileBtn" class="main-btn" disabled>💾 保存合并结果</button>
+        </div>
+    </aside>
+    <main class="main-content">
+        <div class="status-bar"><span id="statusText">状态：就绪</span><span id="fileStats">文件数: 0</span></div>
+        <div class="preview-container">
+            <textarea id="result-area" spellcheck="false"></textarea>
+            <div class="empty-state" id="emptyState"><p>点击图标选择路径开始扫描<br>(读取后可直接在此编辑内容)</p></div>
+        </div>
+    </main>
+</div>
+<script>
+    const scanBtn = document.getElementById('scanBtn'), browseDirBtn = document.getElementById('browseDirBtn'), browseFileBtn = document.getElementById('browseFileBtn'), saveFileBtn = document.getElementById('saveFileBtn'), selectAllCheckbox = document.getElementById('selectAllCheckbox'), statusText = document.getElementById('statusText'), fileStats = document.getElementById('fileStats'), resultArea = document.getElementById('result-area'), emptyState = document.getElementById('emptyState'), extensionGroup = document.getElementById('extensionGroup'), dirPathInput = document.getElementById('dirPath');
+    let finalContent = "";
+    selectAllCheckbox.addEventListener('change', (e) => {
+        extensionGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
+    });
+    browseDirBtn.addEventListener('click', async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:12580/api/select_folder');
+            const data = await response.json();
+            if (data.path) dirPathInput.value = data.path;
+        } catch (err) { alert("后端未启动"); }
+    });
+    browseFileBtn.addEventListener('click', async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:12580/api/select_files');
+            const data = await response.json();
+            if (data.path) dirPathInput.value = data.path;
+        } catch (err) { alert("后端未启动"); }
+    });
+    scanBtn.addEventListener('click', async () => {
+        const path = dirPathInput.value.trim();
+        const extensions = Array.from(extensionGroup.querySelectorAll('input:checked')).map(cb => cb.value);
+        if (!path || extensions.length === 0) return alert("请检查路径和后缀");
+        try {
+            scanBtn.disabled = true; statusText.innerText = "读取中...";
+            const response = await fetch('http://127.0.0.1:12580/api/scan', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path, extensions })
+            });
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            finalContent = data.content || "";
+            fileStats.innerText = `文件数: ${data.count}`;
+            if (finalContent) {
+                resultArea.value = finalContent; statusText.innerText = "读取成功！";
+                saveFileBtn.disabled = false; emptyState.style.display = 'none';
+            }
+        } catch (err) { statusText.innerText = "错误: " + err.message; } finally { scanBtn.disabled = false; }
+    });
+    saveFileBtn.addEventListener('click', async () => {
+        try {
+            const handle = await window.showSaveFilePicker({ suggestedName: 'output.txt' });
+            const writable = await handle.createWritable();
+            await writable.write(resultArea.value);
+            await writable.close();
+        } catch (err) {}
+    });
+</script>
+</body>
+</html>
