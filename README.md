@@ -1,4 +1,4 @@
-# docReader 产品宣传页
+# docReader
 
 一个**酷炫、高大上、完全响应式**的产品展示页面，采用现代化的科技感极简主义设计风格。
 
@@ -19,7 +19,7 @@
 ### 方式一：直接打开（推荐）
 
 ```bash
-# 下载 docreader-landing-page-standalone.html 文件
+# 下载 index.html 文件
 # 用浏览器直接打开即可（双击或拖入浏览器）
 ```
 
@@ -32,14 +32,14 @@ python -m http.server 8000
 # 或使用 Node.js
 npx http-server
 
-# 然后访问 http://localhost:8000/docreader-landing-page-standalone.html
+# 然后访问 http://localhost:8000/index.html
 ```
 
 ## 📁 文件说明
 
 | 文件 | 说明 |
 |------|------|
-| `docreader-landing-page-standalone.html` | 完整的独立 HTML 文件，包含所有 CSS 和 JavaScript |
+| `index.html` | 完整的独立 HTML 文件，包含所有 CSS 和 JavaScript |
 | `README.md` | 项目文档（本文件） |
 
 ## 🎨 设计特点
@@ -223,6 +223,6 @@ MIT License - 可自由使用和修改
 
 ---
 
-**最后更新**：2024 年 4 月
+**最后更新**：2026 年 4 月
 
 **版本**：1.0.0
